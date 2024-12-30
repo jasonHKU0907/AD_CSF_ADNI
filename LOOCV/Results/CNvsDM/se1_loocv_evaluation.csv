@@ -1,0 +1,4 @@
+Analytes,AUC_bt_out,AUC_bt_median,AUC_bt_lower,AUC_bt_upper
+ProteinPanel,0.971 [0.951-0.987],0.9714,0.95143,0.98699
+Covariates,0.770 [0.717-0.821],0.76968,0.71734,0.82137
+ProteinPanel+Covariates,0.970 [0.948-0.986],0.97028,0.94758,0.98619
