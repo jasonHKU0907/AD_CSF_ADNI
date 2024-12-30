@@ -1,0 +1,175 @@
+#merge data：
+library("data.table")
+data1<-fread('C:/Users/yucuo/Desktop/Data/ADNI_CSF_DATA.csv',header = T)
+data2<-fread('C:/Users/yucuo/Desktop/Data/ADNI_Covariates.csv',header = T)
+getwd()
+library(dplyr)
+D=merge(data1,data2,by='id')                                 
+write.csv(D,"C:/Users/yucuo/Desktop/CSF_SOMAscan_covariates_CSF707.csv",row.names = F) 
+
+
+#Note: According to the authors' naming conventions, manual modifications were made to the file CSF_SOMAscan_covariates_CSF707.csv. Specifically, the following changes were made: the "Sex" column values of 1 were replaced with "Male," and those of 0 were replaced with "Female." The "Sex" column was then renamed to "PTGENDER." A new column "APOEcarrier" was added, where the "ApoE4" column value of 0 was replaced with "NO," and the values of 1 and 2 were replaced with "YES." The "Education" column was renamed to "PTEDUCAT." The "DX1" column, used for biological definition, was renamed to "DX_AT_status1," and "A+T+" was manually replaced with "ZA+T+." The "DX3" column, used for clinical definition, was renamed to "DXBLYES," and "Dementia" was manually replaced with "ZDementia."
+
+#The manually modified CSF_SOMAscan_covariates_CSF707.csv file, following the authors' naming conventions, is provided in the Data folder.
+
+
+
+
+##regression analysis in original manuscript：
+## Dementia, MCI vs CN
+library(tidyr)
+library(dplyr)
+m.data=read.csv("C:/Users/yucuo/Desktop/CSF_SOMAscan_covariates_CSF707.csv")
+
+m.data$PTGENDER=as.factor(m.data$PTGENDER)
+m.data$APOEcarrier=as.factor(m.data$APOEcarrier)
+variable.names=colnames(m.data)[9:7016] 
+m.data[9:7016]=scale(log(m.data[9:7016]))
+
+Uni_glm_model=
+  function(x){
+    FML=as.formula(paste0(x,"~", "DXBLYES","+AGE+PTGENDER+PTEDUCAT+APOEcarrier")) 
+    Proname=x
+    glm1=lm(FML,data=df) 
+    LSUM=summary(glm1)
+    beta=LSUM$coefficients[-1,1]
+    p=LSUM$coefficients[-1,4]
+    t=LSUM$coefficients[-1,3]
+    Uni_glm=cbind(Proname,beta,p,t)
+    Uni_glm=as.data.frame(Uni_glm)
+    dimnames(Uni_glm)[[2]]=c("Protein","AD_Estimate","P","t")
+    return(Uni_glm) 
+  } 
+
+for (j in c("ZDementia","MCI")) {
+  df=filter(m.data,m.data$DXBLYES%in%c(j,"CN"))
+  Uni_glm_result=vector(mode="list",length=length(variable.names))
+  Uni_glm_result=lapply(variable.names,Uni_glm_model) 
+  result=data.frame()       
+  Uni_glm2=vector(mode="list",length=length(variable.names))
+  for (i in 1:length(variable.names)) {
+    Uni_glm2[[i]]=Uni_glm_result[[i]][-which(row.names(Uni_glm_result[[i]])%in%c("AGE","PTGENDERMale","PTEDUCAT","APOEcarrierYES")),] 
+    result=rbind(result,Uni_glm2[[i]]) 
+  }
+
+  result$P=as.numeric(result$P)
+  result=result[order(result$P),]
+  result$P_BH_adjust=p.adjust(
+    result$P,  
+    method ="bonferroni"               
+  )
+  setwd("C:/Users/yucuo/Desktop/")
+  filename=paste0("LR_",j,"BICN.csv")
+  write.csv(result,filename)
+  
+}
+
+
+
+
+
+
+
+########################################################################################################
+##  leave one out analysis：
+# clinically diagnosed AD Dementia vs CN 
+
+#merge data：
+library("data.table")
+data1<-fread('C:/Users/yucuo/Desktop/Data/CSF_SOMAscan_covariates_CSF707.csv',header = T)
+data2<-fread('C:/Users/yucuo/Desktop/Data/CNvsDM_loocv_id.csv',header = T)
+getwd()
+library(dplyr)
+D=merge(data1,data2,by='id')   
+write.csv(D,"C:/Users/yucuo/Desktop/Dementia_CSF_SOMAscan_covariates_CSF304_loocv_id.csv",row.names = F) 
+
+
+# clinically diagnosed AD Dementia vs CN 
+library(tidyr)
+library(dplyr)
+
+data <- read.csv("C:/Users/yucuo/Desktop/Dementia_CSF_SOMAscan_covariates_CSF304_loocv_id.csv")
+
+variable.names <- colnames(data)[9:7016]  
+
+data[9:7016] <- scale(log(data[9:7016]))  
+
+data$PTGENDER <- as.factor(data$PTGENDER)
+data$APOEcarrier <- as.factor(data$APOEcarrier)
+
+Uni_glm_model <- function(x, df) {
+  FML <- as.formula(paste0(x, "~ DXBLYES + AGE + PTGENDER + PTEDUCAT + APOEcarrier"))
+  Proname <- x
+  glm1 <- lm(FML, data = df)  
+  LSUM <- summary(glm1)
+  
+  beta <- LSUM$coefficients["DXBLYESZDementia", 1]  
+  p <- LSUM$coefficients["DXBLYESZDementia", 4]    
+  t <- LSUM$coefficients["DXBLYESZDementia", 3]    
+  
+  Uni_glm <- data.frame(Analytes = Proname, Beta = beta, P = p, t = t)
+  return(Uni_glm)
+}
+
+for (j in c("ZDementia")) {  
+  for (i in 1:304) {  
+    df <- data %>% filter(loocv_id != i, DXBLYES %in% c(j, "CN"))
+    
+    Uni_glm_result <- lapply(variable.names, function(x) Uni_glm_model(x, df))
+
+    result <- do.call(rbind, Uni_glm_result)
+
+    result$P <- as.numeric(result$P)
+    result <- result[order(result$P), ]  
+    result$P_BH_adjust <- p.adjust(result$P, method = "bonferroni")  
+    
+    setwd("C:/Users/yucuo/Desktop/NHB_Test_loocv/clinical diagnosed AD dementia vs CN results/")
+    filename <- paste0("Test_loocv", i, ".csv")
+    write.csv(result, filename, row.names = FALSE)
+  }
+}
+
+
+
+#merge analytes and proteins：
+library(dplyr)
+
+input_folder <- "C:/Users/yucuo/Desktop/NHB_Test_loocv/clinical diagnosed AD dementia vs CN results/"
+output_folder <- "C:/Users/yucuo/Desktop/NHB_Test_loocv/clinical diagnosed AD dementia vs CN results_correspond_protein/"
+
+analytes_protein <- read.csv("C:/Users/yucuo/Desktop/Data/ADNI_CSF_DICT.csv")
+
+for (i in 1:304) {
+  input_file <- paste0(input_folder, "Test_loocv", i, ".csv")
+  output_file <- paste0(output_folder, "Test_loocv", i, ".csv")
+  
+  data <- read.csv(input_file)
+
+  data <- data %>%
+    left_join(analytes_protein, by = "Analytes")   
+  write.csv(data, file = output_file, row.names = FALSE)
+}
+
+
+
+#remove duplicate protein targets：
+library(dplyr)
+
+input_folder <- "C:/Users/yucuo/Desktop/NHB_Test_loocv/clinical diagnosed AD dementia vs CN results_correspond_protein/"
+output_folder <- "C:/Users/yucuo/Desktop/NHB_Test_loocv/clinical diagnosed AD dementia vs CN results_OUTduplicate/"
+
+for (i in 1:304) {
+  input_file <- paste0(input_folder, "Test_loocv", i, ".csv")
+  output_file <- paste0(output_folder, "Test_loocv", i, ".csv")
+  data <- read.csv(input_file)
+
+  result <- data %>%
+    group_by(Target) %>%  
+    slice_min(order_by = P, n = 1) %>%  
+    ungroup()  
+  
+  write.csv(result, file = output_file, row.names = FALSE)
+}
+
+
+
