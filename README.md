@@ -8,10 +8,10 @@ Beyond the codes, we provide strict LOOCV Results of each CV iter and correspond
 Required environment to run the code
 Python 3.9.16
 
-nunmpy == 1.23.5
-pandas == 1.4.3
-lightgbm == 3.3.2
-sklearn == 1.2.2
-tqdm == 4.64.0
-joblib == 1.2.0
-scipt==1.9.0
+nunmpy == 1.23.5 \n
+pandas == 1.4.3 \n
+lightgbm == 3.3.2 \n
+sklearn == 1.2.2 \n
+tqdm == 4.64.0 \n
+joblib == 1.2.0 \n
+scipt==1.9.0 \n
