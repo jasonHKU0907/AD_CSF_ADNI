@@ -8,7 +8,7 @@ Beyond the codes, we provide strict LOOCV Results of each CV iter and correspond
 Required environment to run the code
 Python 3.9.16
 
-nunmpy == 1.23.5 \n
+nunmpy == 1.23.5 \\n
 pandas == 1.4.3 \n
 lightgbm == 3.3.2 \n
 sklearn == 1.2.2 \n
